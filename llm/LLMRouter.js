@@ -20,6 +20,7 @@ const TASK_ROUTING = {
   'db-query-complex': 'claude',
   'log-correlation': 'claude',
   // Phase 4 — Result Reporter
+  'test-summary': 'gemini',
   'failure-root-cause': 'claude',
 };
 
