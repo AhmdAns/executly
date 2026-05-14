@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { EventEmitter } from 'events';
 import { chromium } from 'playwright';
 import { mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -28,6 +29,7 @@ export class PlaywrightExecutor {
   constructor(router = new LLMRouter()) {
     this.router = router;
     this.healer = new SelectorHealer(router);
+    this.emitter = new EventEmitter();
     this.browser = null;
     this.page = null;
     if (!existsSync(SCREENSHOTS_DIR)) mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -58,18 +60,21 @@ export class PlaywrightExecutor {
 
   async executeTestCase(testCase) {
     console.log(`\n[PlaywrightExecutor] ${testCase.testCaseId}: ${testCase.title}`);
+    this.emitter.emit('testcase:start', { testCaseId: testCase.testCaseId, title: testCase.title, totalSteps: testCase.steps.length });
+
     const stepResults = [];
 
     for (let i = 0; i < testCase.steps.length; i++) {
       const step = testCase.steps[i];
       const result = await this.#runWithRetry(step, testCase.testCaseId, i);
       stepResults.push(result);
+      this.emitter.emit('step:result', { testCaseId: testCase.testCaseId, stepIndex: i, ...result });
 
       if (result.passed) {
         console.log(`  [PASS] step ${i + 1}: ${step.action} ${step.target ?? ''}`);
       } else {
         console.error(`  [FAIL] step ${i + 1}: ${step.action} — ${result.error}`);
-        break; // stop on first failure
+        break;
       }
     }
 
@@ -77,12 +82,9 @@ export class PlaywrightExecutor {
       stepResults.length === testCase.steps.length &&
       stepResults.every((r) => r.passed);
 
-    return {
-      testCaseId: testCase.testCaseId,
-      title: testCase.title,
-      passed,
-      stepResults,
-    };
+    const tcResult = { testCaseId: testCase.testCaseId, title: testCase.title, passed, stepResults };
+    this.emitter.emit('testcase:complete', tcResult);
+    return tcResult;
   }
 
   // ── Internal helpers ─────────────────────────────────────────────────────────
