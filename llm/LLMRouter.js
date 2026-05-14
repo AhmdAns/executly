@@ -13,9 +13,14 @@ const TASK_ROUTING = {
   // Phase 2 — Playwright Executor
   'action-translation': 'gemini',   // clear Playwright command generation
   'selector-resolution': 'claude',  // ambiguous element targeting
+  // Phase 3 — Facilitators
+  'api-request-generation': 'gemini',
+  'api-response-analysis': 'gemini',
+  'db-query-simple': 'gemini',
+  'db-query-complex': 'claude',
+  'log-correlation': 'claude',
   // Phase 4 — Result Reporter
   'failure-root-cause': 'claude',
-  'log-correlation': 'claude',
 };
 
 export class LLMRouter {
