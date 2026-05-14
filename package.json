@@ -1,0 +1,17 @@
+{
+  "name": "executly",
+  "version": "0.1.0",
+  "description": "Smart test execution tool with AI-powered step beautification",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test:router": "node llm/LLMRouter.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.7",
+    "playwright": "^1.49.0"
+  }
+}
