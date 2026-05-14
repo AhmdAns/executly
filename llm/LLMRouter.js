@@ -13,6 +13,10 @@ const TASK_ROUTING = {
   // Phase 2 — Playwright Executor
   'action-translation': 'gemini',   // clear Playwright command generation
   'selector-resolution': 'claude',  // ambiguous element targeting
+  // Phase 5 — Intelligence Layer
+  'selector-healing': 'claude',
+  'root-cause-deep': 'claude',
+  'gap-detection': 'gemini',
   // Phase 3 — Facilitators
   'api-request-generation': 'gemini',
   'api-response-analysis': 'gemini',

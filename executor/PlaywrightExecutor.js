@@ -4,11 +4,13 @@ import { mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { LLMRouter } from '../llm/LLMRouter.js';
+import { SelectorHealer } from '../intelligence/SelectorHealer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = join(__dirname, '..', 'screenshots');
 const MAX_RETRIES = 3;
 const RETRY_BACKOFF_MS = 500;
+const SELECTOR_ERROR_RE = /not found|no element|timeout.*waiting|strict mode violation|element is not visible/i;
 
 // Detects explicit Playwright/CSS selectors vs human descriptions
 const SELECTOR_RE = /^(\[|#|\.|aria\/|text=|xpath=|role=|:nth-|>>)/;
@@ -25,6 +27,7 @@ const SAFE_METHODS = new Set([
 export class PlaywrightExecutor {
   constructor(router = new LLMRouter()) {
     this.router = router;
+    this.healer = new SelectorHealer(router);
     this.browser = null;
     this.page = null;
     if (!existsSync(SCREENSHOTS_DIR)) mkdirSync(SCREENSHOTS_DIR, { recursive: true });
@@ -89,9 +92,19 @@ export class PlaywrightExecutor {
       await this.#executeStep(step);
       return { step, passed: true, attempt };
     } catch (err) {
+      // On first selector failure, attempt healing before the next retry
+      const isSelectorError = SELECTOR_ERROR_RE.test(err.message);
+      if (attempt === 1 && isSelectorError && step.target) {
+        const healed = await this.healer.heal(this.page, step.target, step.action).catch(() => null);
+        if (healed && healed !== step.target) {
+          console.log(`    [SelectorHealer] "${step.target}" → "${healed}"`);
+          step = { ...step, target: healed, _healed: true };
+        }
+      }
+
       if (attempt >= MAX_RETRIES) {
         const screenshot = await this.#screenshot(testCaseId, stepIndex);
-        return { step, passed: false, error: err.message, screenshot, attempt };
+        return { step, passed: false, error: err.message, screenshot, attempt, selectorHealed: step._healed ?? false };
       }
       console.warn(`    Retry ${attempt}/${MAX_RETRIES}: ${err.message.slice(0, 80)}`);
       await this.page.waitForTimeout(RETRY_BACKOFF_MS * attempt);
